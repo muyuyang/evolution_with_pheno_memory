@@ -2,16 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import random
+import os
 
 # Parameters 
 N = 100000
 num_allele = 4
-num_steps = 10000
+num_steps = 100000
 mutation_rate = 1e-5
 recomb_rate = 0.5
 period = 15
 s_mid = 0.4
-p = 0.8    # Phenotypic memory
+p = 0    # Phenotypic memory
 var = 0.3
 
 class VarPheno(object):
@@ -170,13 +171,13 @@ def simulation():
         # print('AB4',AB_freq.freq)
 
 
-        # freq_expand = [freq[0],aB_freq.freq[0],aB_freq.freq[1],freq[2],AB_freq.freq[0],AB_freq.freq[1]]
-        # # print(freq_expand)
-        # next_N = np.random.multinomial(N,pvals=freq_expand/np.sum(freq_expand))
-        # next_freq = next_N / np.sum(next_N)
-        # freq = [next_freq[0],next_freq[1]+next_freq[2],next_freq[3],next_freq[4]+next_freq[5]]
-        # aB_freq.freq = next_freq[1:3]
-        # AB_freq.freq = next_freq[4:]
+        freq_expand = [freq[0],aB_freq.freq[0],aB_freq.freq[1],freq[2],AB_freq.freq[0],AB_freq.freq[1]]
+        # print(freq_expand)
+        next_N = np.random.multinomial(N,pvals=freq_expand/np.sum(freq_expand))
+        next_freq = next_N / np.sum(next_N)
+        freq = [next_freq[0],next_freq[1]+next_freq[2],next_freq[3],next_freq[4]+next_freq[5]]
+        aB_freq.freq = next_freq[1:3]
+        AB_freq.freq = next_freq[4:]
 
         # Calculate heterozygosity
         ah = (freq[0] + freq[1]) * (1 - (freq[0] + freq[1]))
@@ -207,9 +208,10 @@ def simulation():
 
 
 def main():
-    num_trial = 1
+    num_trial = 10000
     max_t = 0
     max_freq = None
+    max_cumu = 0
     ave_AH = np.zeros(num_steps)
     ave_BH = np.zeros(num_steps)
     ave_ah_cumu = 0
@@ -223,14 +225,19 @@ def main():
         ave_AH += AH
         ave_BH += BH
 
-        if t > max_t:
+        if t >= max_t and max_cumu < ah_cumu:
             max_t = t
             max_freq = freq_history
+            max_cumu = ah_cumu
 
     print('max time', max_t)
 
-    print('average locus A heterozygosity: ', ave_ah_cumu / num_trial)
-    print('average locus B heterozygosity: ', ave_bh_cumu / num_trial)
+    print('locus A cumulative heterozygosity', ave_ah_cumu / num_trial)
+    print('locus B cumulative heterozygosity', ave_bh_cumu / num_trial)
+
+    output_path = 'results/l%d_p%d_s%d_var%d/' % (period,int(p*10),int(s_mid*10),int(var*10))
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
 
     ave_AH = ave_AH / num_trial
     ave_BH = ave_BH / num_trial
@@ -239,7 +246,6 @@ def main():
 
     t = list(range(max_t+1))
     t = t[::100]
-    print(max_freq)
     plt.plot(t,max_freq[:,0][::100])
     plt.plot(t,max_freq[:,1][::100])
     plt.plot(t,max_freq[:,2][::100])
@@ -248,6 +254,9 @@ def main():
     plt.ylabel('frequency')
     plt.legend(['ab','aB','Ab','AB'])
     plt.title('Allele frequency (N=%d)' % N)
+    plt.savefig(output_path+'allele_freq.png')
+
+
 
 
     plt.figure()
@@ -258,33 +267,38 @@ def main():
     plt.legend(['a','A'])
     plt.xlabel('t')
     plt.ylabel('frequency')
+    plt.savefig(output_path+'a_freq.png')
+
 
 
     plt.figure()
 
     plt.plot(t,(max_freq[:,0] + max_freq[:,2])[::100])
     plt.plot(t,(max_freq[:,1] + max_freq[:,3])[::100])
-    print(max_freq[-1])
     plt.legend(['b','B'])
     plt.xlabel('t')
     plt.ylabel('frequency')
+    plt.savefig(output_path+'b_freq.png')
 
 
 
-    t = list(range(num_steps))
+
+    t = list(range(max_t))
     t = t[::100]
     plt.figure()
-    plt.plot(t,ave_AH[::100])
-    plt.title('locus A cumulative heterozygosity')
+    plt.plot(t,ave_AH[:max_t][::100])
+    plt.title('Average locus A heterozygosity')
     plt.xlabel('t')
     plt.ylabel('h')
+    plt.savefig(output_path+'a_hetero.png')
+
 
     plt.figure()
-    plt.plot(t,ave_BH[::100])
-    plt.title('locus B cumulative heterozygosity')
+    plt.plot(t,ave_BH[:max_t][::100])
+    plt.title('Average locus B heterozygosity')
     plt.xlabel('t')
     plt.ylabel('h')
-    
+    plt.savefig(output_path+'b_hetero.png')
 
     plt.show()
 
